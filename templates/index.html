@@ -1,24 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Steganography App</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Steganography</title>
 </head>
 <body>
-    <h1>Steganography App</h1>
-    <h2>Encode Data into Video</h2>
-    <form method="POST" action="/encode">
-        <label for="text">Text to Encode:</label><br>
-        <textarea id="text" name="text" rows="4" cols="50"></textarea><br>
+    <h1>Video Steganography</h1>
+    <form method="POST">
+        <label for="choice">Choose an operation:</label>
+        <select name="choice" id="choice">
+            <option value="encode">Encode Data</option>
+            <option value="decode">Decode Data</option>
+        </select>
+        <br><br>
+        <label for="data">Data to Encode:</label>
+        <textarea name="data" id="data" rows="4" cols="50"></textarea>
+        <br><br>
         <label for="frame_number">Frame Number:</label>
-        <input type="number" id="frame_number" name="frame_number" min="1"><br>
-        <input type="submit" value="Encode">
+        <input type="number" name="frame_number" id="frame_number" required>
+        <br><br>
+        <button type="submit">Submit</button>
     </form>
-
-    <h2>Decode Data from Video</h2>
-    <form method="POST" action="/decode">
-        <label for="frame_number">Frame Number:</label>
-        <input type="number" id="frame_number" name="frame_number" min="1"><br>
-        <input type="submit" value="Decode">
-    </form>
+    {% if result %}
+    <h2>Result:</h2>
+    <p>{{ result }}</p>
+    {% endif %}
 </body>
 </html>

@@ -1,64 +1,117 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file
+from flask import Flask, render_template, request, redirect, url_for
 import cv2
 import numpy as np
+import os
 
 app = Flask(__name__)
 
-def BinaryToDecimal(binary):
-    string = int(binary, 2)
-    return string
+UPLOAD_FOLDER = 'uploads'  # Folder untuk menyimpan video yang diunggah
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-def txt_encode(text, frame):
-    l = len(text)
-    i = 0
-    add = ''
-    while i < l:
-        t = ord(text[i])
-        if t >= 32 and t <= 64:
-            t1 = t + 48
-            t2 = t1 ^ 170
-            res = bin(t2)[2:].zfill(8)
-            add += "0011" + res
+def caesar_cipher_encrypt(plaintext, key):
+    ciphertext = ""
+    for char in plaintext:
+        if char.isalpha():
+            shifted = ord(char) + key
+            if char.islower():
+                if shifted > ord('z'):
+                    shifted -= 26
+            elif char.isupper():
+                if shifted > ord('Z'):
+                    shifted -= 26
+            ciphertext += chr(shifted)
         else:
-            t1 = t - 48
-            t2 = t1 ^ 170
-            res = bin(t2)[2:].zfill(8)
-            add += "0110" + res
-        i += 1
-    res1 = add + "111111111111"
-    print("The string after binary conversion applying all the transformations: " + res1)
-    length = len(res1)
-    print("Length of binary after conversion: ", length)
-    HM_SK = ""
-    ZWC = {"00": u'\u200C', "01": u'\u202C', "11": u'\u202D', "10": u'\u200E'}
-    word = frame.split()
-    i = 0
-    while i < len(res1):
-        s = word[int(i / 12)]
-        j = 0
-        x = ""
-        HM_SK = ""
-        while j < 12:
-            x = res1[j + i] + res1[i + j + 1]
-            HM_SK += ZWC[x]
-            j += 2
-        s1 = s + HM_SK
-        frame = frame.replace(s, s1, 1)
-        i += 12
-    t = int(len(res1) / 12)
-    while t < len(word):
-        frame += " " + word[t]
-        t += 1
+            ciphertext += char
+    return ciphertext
+
+def caesar_cipher_decrypt(ciphertext, key):
+    decrypted_text = ""
+    for char in ciphertext:
+        if char.isalpha():
+            shifted = ord(char) - key
+            if char.islower():
+                if shifted < ord('a'):
+                    shifted += 26
+            elif char.isupper():
+                if shifted < ord('A'):
+                    shifted += 26
+            decrypted_text += chr(shifted)
+        else:
+            decrypted_text += char
+    return decrypted_text
+
+def msgtobinary(msg):
+    if type(msg) == str:
+        result = ''.join([format(ord(i), "08b") for i in msg])
+    elif type(msg) == bytes or type(msg) == np.ndarray:
+        result = [format(i, "08b") for i in msg]
+    elif type(msg) == int or type(msg) == np.uint8:
+        result = format(msg, "08b")
+    else:
+        raise TypeError("Input type is not supported in this function")
+    return result
+
+def preparing_key_array(s):
+    return [ord(c) for c in s]
+
+def encryption(plaintext, key):
+    key = key % 26  # Pastikan kunci berada dalam rentang [0, 25]
+    plaintext = caesar_cipher_encrypt(plaintext, key)
+    return plaintext
+
+def decryption(ciphertext, key):
+    key = key % 26  # Pastikan kunci berada dalam rentang [0, 25]
+    decrypted_text = caesar_cipher_decrypt(ciphertext, key)
+    return decrypted_text
+
+def embed(frame, data):
+    data += '*^*^*'
+    binary_data = msgtobinary(data)
+    length_data = len(binary_data)
+    index_data = 0
+    for i in frame:
+        for pixel in i:
+            r, g, b = msgtobinary(pixel)
+            if index_data < length_data:
+                pixel[0] = int(r[:-1] + binary_data[index_data], 2)
+                index_data += 1
+            if index_data < length_data:
+                pixel[1] = int(g[:-1] + binary_data[index_data], 2)
+                index_data += 1
+            if index_data < length_data:
+                pixel[2] = int(b[:-1] + binary_data[index_data], 2)
+                index_data += 1
+            if index_data >= length_data:
+                break
     return frame
 
-def encode_vid_data(frame_number, text):
-    cap = cv2.VideoCapture("Sample_cover_files/cover_video.avi")
-    vidcap = cv2.VideoCapture("Sample_cover_files/cover_video.avi")
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+def extract(frame):
+    data_binary = ""
+    final_decoded_msg = ""
+    for i in frame:
+        for pixel in i:
+            r, g, b = msgtobinary(pixel)
+            data_binary += r[-1]
+            data_binary += g[-1]
+            data_binary += b[-1]
+            total_bytes = [data_binary[i: i+8] for i in range(0, len(data_binary), 8)]
+            decoded_data = ""
+            for byte in total_bytes:
+                decoded_data += chr(int(byte, 2))
+                if decoded_data[-5:] == "*^*^*":
+                    for i in range(0, len(decoded_data)-5):
+                        final_decoded_msg += decoded_data[i]
+                    final_decoded_msg = decryption(final_decoded_msg)
+                    return final_decoded_msg
+
+def encode_vid_data(data, frame_number):
+    cap = cv2.VideoCapture("Sample_cover_files/cover_video.mp4")
+    vidcap = cv2.VideoCapture("Sample_cover_files/cover_video.mp4")
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     frame_width = int(vidcap.get(3))
     frame_height = int(vidcap.get(4))
     size = (frame_width, frame_height)
-    out = cv2.VideoWriter('stego_video.avi', fourcc, 25.0, size)
+    out = cv2.VideoWriter('stego_video.mp4', fourcc, 25.0, size)
     max_frame = 0
     while cap.isOpened():
         ret, frame = cap.read()
@@ -66,80 +119,74 @@ def encode_vid_data(frame_number, text):
             break
         max_frame += 1
     cap.release()
-    print("Total number of frames in the selected video:", max_frame)
-    print("Enter the frame number where you want to embed data:")
-    frame_number = int(input())
-    frame_count = 0
+    if frame_number < 1 or frame_number > max_frame:
+        return "Invalid frame number"
+    frame_number -= 1
+    frame_number = 0
     while vidcap.isOpened():
-        frame_count += 1
+        frame_number += 1
         ret, frame = vidcap.read()
         if ret == False:
             break
-        if frame_count == frame_number:
-            frame = txt_encode(text, frame)
+        if frame_number == frame_number:
+            change_frame_with = embed(frame, data)
+            frame_ = change_frame_with
+            frame = change_frame_with
         out.write(frame)
-    print("\nData has been successfully embedded in the video file.")
-    out.release()
+    return "Data has been successfully embedded in the video file."
 
 def decode_vid_data(frame_number):
-    ZWC_reverse = {u'\u200C': "00", u'\u202C': "01", u'\u202D': "11", u'\u200E': "10"}
-    stego = input("\nPlease enter the stego file name (with extension) to decode the message: ")
-    file4 = open(stego, "r", encoding="utf-8")
-    temp = ''
-    for line in file4:
-        for words in line.split():
-            T1 = words
-            binary_extract = ""
-            for letter in T1:
-                if letter in ZWC_reverse:
-                    binary_extract += ZWC_reverse[letter]
-            if binary_extract == "111111111111":
-                break
-            else:
-                temp += binary_extract
-    print("\nEncrypted message presented in code bits:", temp)
-    lengthd = len(temp)
-    print("\nLength of encoded bits: ", lengthd)
-    i = 0
-    a = 0
-    b = 4
-    c = 4
-    d = 12
-    final = ''
-    while i < len(temp):
-        t3 = temp[a:b]
-        a += 12
-        b += 12
-        i += 12
-        t4 = temp[c:d]
-        c += 12
-        d += 12
-        if t3 == '0110':
-            decimal_data = BinaryToDecimal(t4)
-            final += chr((decimal_data ^ 170) + 48)
-        elif t3 == '0011':
-            decimal_data = BinaryToDecimal(t4)
-            final += chr((decimal_data ^ 170) - 48)
-    print("\nMessage after decoding from the stego file: ", final)
+    cap = cv2.VideoCapture('stego_video.mp4')
+    max_frame = 0
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if ret == False:
+            break
+        max_frame += 1
+    if frame_number < 1 or frame_number > max_frame:
+        return "Invalid frame number"
+    frame_number -= 1
+    frame_number = 0
+    while cap.isOpened():
+        frame_number += 1
+        ret, frame = cap.read()
+        if ret == False:
+            break
+        if frame_number == frame_number:
+            decoded_data = extract(frame)
+            return decoded_data
+    return "Data extraction failed"
 
 @app.route('/')
+def home():
+    return render_template('upload.html')  # Tampilkan halaman HTML untuk unggah video
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return "No file part"
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file"
+    if file:
+        filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(filename)
+        return "File uploaded successfully"
+
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template('index.html')
+    if request.method == "POST":
+        choice = request.form["choice"]
+        if choice == "encode":
+            data = request.form["data"]
+            frame_number = int(request.form["frame_number"])
+            result = encode_vid_data(data, frame_number)
+            return render_template("index.html", result=result)
+        elif choice == "decode":
+            frame_number = int(request.form["frame_number"])
+            result = decode_vid_data(frame_number)
+            return render_template("index.html", result=result)
+    return render_template("index.html", result=None)
 
-@app.route('/encode', methods=['POST'])
-def encode():
-    if request.method == 'POST':
-        text = request.form['text']
-        frame_number = int(request.form['frame_number'])
-        frame = txt_encode(text, frame_number)
-        return render_template('result.html', result="Data berhasil disisipkan")
-
-@app.route('/decode', methods=['POST'])
-def decode():
-    if request.method == 'POST':
-        frame_number = int(request.form['frame_number'])
-        result = decode_vid_data(frame_number)
-        return render_template('result.html', result=result)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
