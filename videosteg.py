@@ -44,9 +44,6 @@ def msgtobinary(msg):
         raise TypeError("Input type is not supported in this function")
     return result
 
-def preparing_key_array(s):
-    return [ord(c) for c in s]
-
 def encryption(plaintext):
     print("Enter the key for Caesar Cipher: ")
     key = int(input())
@@ -108,8 +105,8 @@ def extract(frame):
                     return
 
 def encode_vid_data():
-    cap = cv2.VideoCapture("Sample_cover_files/cover_video.mp4")
-    vidcap = cv2.VideoCapture("Sample_cover_files/cover_video.mp4")
+    cap = cv2.VideoCapture("static/Sample_cover_files/cover_video.mp4")
+    vidcap = cv2.VideoCapture("static/Sample_cover_files/cover_video.mp4")
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     frame_width = int(vidcap.get(3))
     frame_height = int(vidcap.get(4))

@@ -1,13 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Upload Video</title>
+    <meta charset="UTF-8">
+    <title>Video Steganography</title>
 </head>
 <body>
-    <h1>Upload Video</h1>
-    <form method="POST" action="/upload" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <input type="submit" value="Upload">
+    <h1>Video Steganography</h1>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="video_file" accept=".avi, .mp4">
+        <input type="submit" value="Upload & Encode">
     </form>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
 </body>
 </html>
