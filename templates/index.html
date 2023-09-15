@@ -1,25 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Caesar Cipher Video Encoder</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Steganography</title>
 </head>
 <body>
-    <h1>Caesar Cipher Video Encoder</h1>
-    <form action="/encode" method="POST" enctype="multipart/form-data">
-        <label for="message">Pesan:</label>
-        <textarea id="message" name="message" rows="4" cols="50"></textarea><br><br>
-        <label for="key">Kunci:</label>
-        <input type="number" id="key" name="key" min="0" max="25"><br><br>
-        <label for="video">Pilih Video:</label>
-        <input type="file" id="video" name="video"><br><br>
-        <input type="submit" value="Enkripsi dan Sisipkan ke Video">
+    <h1>Video Steganography</h1>
+    <h2>Encode Video</h2>
+    <form method="POST" action="/encode" enctype="multipart/form-data">
+        <label for="video">Upload Video:</label>
+        <input type="file" name="video" accept=".mp4, .avi, .mkv" required><br><br>
+        <label for="message">Message:</label>
+        <textarea name="message" rows="4" cols="50" required></textarea><br><br>
+        <input type="submit" value="Encode">
     </form>
-    <h1>Dekode Pesan dari Video</h1>
-    <form action="/decode" method="POST">
-        <input type="file" id="video" name="video"><br><br>
-        <label for="key">Kunci:</label>
-        <input type="number" id="key" name="key" min="0" max="25"><br><br>
-        <input type="submit" value="Dekode Pesan dari Video">
-    </form>
+    <h2>Decode Video</h2>
+    <a href="/decode">Decode Video</a>
 </body>
 </html>

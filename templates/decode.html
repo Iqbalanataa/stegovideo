@@ -1,12 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Hasil Dekode Pesan</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decode Video</title>
 </head>
 <body>
-    <h1>Hasil Dekode Pesan</h1>
-    <p>Pesan yang berhasil diekstrak dari video:</p>
+    <h1>Decode Video</h1>
+    <form method="POST" action="/decode" enctype="multipart/form-data">
+        <label for="video">Upload Video:</label>
+        <input type="file" name="video" accept=".mp4, .avi, .mkv" required><br><br>
+        <input type="submit" value="Decode">
+    </form>
+    <br><br>
+    <a href="/">HOME</a>
     <p>{{ decoded_message }}</p>
-    <p><a href="/">Kembali ke Halaman Utama</a></p>
 </body>
 </html>
