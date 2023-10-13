@@ -1,0 +1,172 @@
+from PIL import Image
+import cv2 as cv
+import os
+
+def caesar_encrypt(message, key):
+    output = ""
+
+    for i in range(0, len(message)):
+        char = message[i]
+        if char.isalpha():
+            shift = ord('a') if char.islower() else ord('A')
+            output += chr((ord(char) - shift + key) % 26 + shift)
+        else:
+            output += char
+
+    return output
+
+def caesar_decrypt(ciphertext, key):
+    output = ""
+
+    for i in range(0, len(ciphertext)):
+        char = ciphertext[i]
+        if char.isalpha():
+            shift = ord('a') if char.islower() else ord('A')
+            output += chr((ord(char) - shift - key) % 26 + shift)
+        else:
+            output += char
+
+    return output
+
+def encode_video(video_file, output_dir):
+    if not os.path.isfile(video_file):
+        print("File video tidak ditemukan.")
+        return 0
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    video_capture = cv.VideoCapture(video_file)
+
+    frame_count = 0
+    while True:
+        ret, frame = video_capture.read()
+        if not ret:
+            break
+        frame_filename = os.path.join(output_dir, f'frame_{frame_count:04d}.bmp')
+        cv.imwrite(frame_filename, frame)
+
+        frame_count += 1
+    video_capture.release()
+    return frame_count
+
+def embed(message, frame_number):
+    frames_dir = "frames"
+    os.makedirs(frames_dir, exist_ok=True)
+
+    frame_filename = os.path.join(frames_dir, f'frame_{frame_number:04d}.bmp')
+
+    if not os.path.isfile(frame_filename):
+        raise FileNotFoundError(f"File frame tidak ditemukan: {frame_filename}")
+
+    img = Image.open(frame_filename)
+    width, height = img.size
+
+    encoded = message + '%%'
+    binary_message = ''.join(format(ord(char), '08b') for char in encoded)
+    binary_message += '1111111111111110'  
+
+    if len(binary_message) > width * height:
+        raise ValueError("Pesan terlalu panjang untuk disisipkan pada gambar")
+
+    data_index = 0
+    encoded_image = img.copy()
+
+    for y in range(height):
+        for x in range(width):
+            pixel = list(img.getpixel((x, y)))
+
+            for color_channel in range(1):  
+                if data_index < len(binary_message):
+                    pixel[color_channel] = int(format(pixel[color_channel], '08b')[:-1] + binary_message[data_index], 2)
+                    data_index += 1
+
+            encoded_image.putpixel((x, y), tuple(pixel))
+
+            if data_index == len(binary_message):
+                break
+
+    encoded_image.save(frame_filename)
+    return frame_filename
+
+def extract(frame_filename):
+    img = Image.open(frame_filename)
+    binary_message = ''
+    eom_marker = '1111111111111110'
+
+    for y in range(img.height):
+        for x in range(img.width):
+            pixel = img.getpixel((x, y))
+
+            for color_channel in range(1):
+                binary_message += format(pixel[color_channel], '08b')[-1]
+
+            if binary_message[-16:] == eom_marker:
+                break
+
+        if binary_message[-16:] == eom_marker:
+            break
+
+    if binary_message[-16:] != eom_marker:
+        raise ValueError("Tidak ada pesan yang ditemukan pada frame ini.")
+
+    binary_message = binary_message[:-16]
+
+    message = ''.join(chr(int(binary_message[i:i+8], 2)) for i in range(0, len(binary_message), 8))
+
+    return message
+
+def frames_to_video(frames_dir, output_video, frame_rate):
+    os.makedirs(output_video, exist_ok=True)
+
+    frame_files = [f for f in os.listdir(frames_dir) if f.endswith(".bmp")]
+    frame_files.sort()
+
+    if not frame_files:
+        print("Tidak ada file frame yang ditemukan.")
+        return
+
+    first_frame = cv.imread(os.path.join(frames_dir, frame_files[0]))
+    height, width, layers = first_frame.shape
+    fourcc = cv.VideoWriter_fourcc(*'XVID')
+    out = cv.VideoWriter(os.path.join(output_video, 'output_video.avi'), fourcc, frame_rate, (width, height), isColor=True)
+    out.set(cv.CAP_PROP_BITRATE, 100000)
+
+    for frame_file in frame_files:
+        frame_path = os.path.join(frames_dir, frame_file)
+        frame = cv.imread(frame_path)
+        out.write(frame)
+
+    out.release()
+
+# Penggunaan
+if __name__ == "__main__":
+    # Input pesan dari pengguna
+    message = input("Masukkan pesan yang akan dienkripsi dan disisipkan: ")
+    key = int(input("Masukkan kunci Caesar Cipher (angka): "))
+
+    # Enkripsi pesan
+    encrypted_message = caesar_encrypt(message, key)
+    print("Pesan yang dienkripsi:", encrypted_message)
+
+    # Ekstrak frame dari video
+    video_file = "testii.avi"
+    output_directory = "frames"
+    total_frames_extracted = encode_video(video_file, output_directory)
+    print(f'Total {total_frames_extracted} frame telah diekstrak dan disimpan dalam folder "{output_directory}".')
+
+    # Pilih frame untuk menyisipkan pesan (contoh: frame ke-0)
+    frame_number = 0
+    frame_filename = embed(encrypted_message, frame_number)
+    print(f"Pesan telah disisipkan pada frame {frame_number}: {frame_filename}")
+
+    # Ekstrak pesan dari frame yang telah disisipkan
+    extracted_message = extract(frame_filename)
+    decrypt_msg = caesar_decrypt(extracted_message, key)
+    print(f"Pesan yang diekstrak: {decrypt_msg}")
+
+    frames_directory = "frames"  # Ganti dengan direktori frame yang Anda miliki
+    output_video = "Output"  # Ubah direktori output sesuai keinginan Anda
+    frame_rate = 30  # Kecepatan frame per detik
+
+    frames_to_video(frames_directory, output_video, frame_rate)
+    print(f"Video telah dibuat: {os.path.join(output_video, 'output_video.avi')}")
